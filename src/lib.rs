@@ -1,8 +1,10 @@
 // Primary export functions for the NEON module.
 use dtln_processor::DtlnDeferredProcessor;
-use dtln_processor::DtlnProcessEngine;
+use dtln_processor::{DtlnImmediateProcessor, DtlnProcessEngine};
 
 use std::io::Result;
+use std::ptr;
+use std::slice;
 use std::sync::{Arc, Mutex};
 pub mod constants;
 pub mod dtln_engine;
@@ -27,6 +29,52 @@ fn dtln_stop_napi(mut cx: FunctionContext) -> JsResult<JsUndefined> {
     let dtln_processor = cx.argument::<JsBox<Arc<Mutex<DtlnDeferredProcessor>>>>(0)?;
     dtln_processor.lock().unwrap().stop();
     Ok(cx.undefined())
+}
+
+#[no_mangle]
+pub extern "C" fn dtln_rs_processor_create() -> *mut DtlnImmediateProcessor {
+    match DtlnImmediateProcessor::new() {
+        Ok(processor) => Box::into_raw(Box::new(processor)),
+        Err(_) => ptr::null_mut(),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn dtln_rs_processor_destroy(handle: *mut DtlnImmediateProcessor) {
+    if handle.is_null() {
+        return;
+    }
+
+    unsafe {
+        drop(Box::from_raw(handle));
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn dtln_rs_denoise(
+    handle: *mut DtlnImmediateProcessor,
+    input_ptr: *const f32,
+    len: usize,
+    output_ptr: *mut f32,
+) -> bool {
+    if handle.is_null() || input_ptr.is_null() || output_ptr.is_null() || len == 0 {
+        return false;
+    }
+
+    let processor = unsafe { &mut *handle };
+    let input = unsafe { slice::from_raw_parts(input_ptr, len) };
+    let output = unsafe { slice::from_raw_parts_mut(output_ptr, len) };
+
+    match processor.denoise(input) {
+        Ok(result) => {
+            if result.samples.len() > output.len() {
+                return false;
+            }
+            output[..result.samples.len()].copy_from_slice(&result.samples);
+            true
+        }
+        Err(_) => false,
+    }
 }
 
 /**
