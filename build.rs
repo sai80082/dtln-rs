@@ -5,14 +5,7 @@ fn main() {
 
 #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
 fn main() {
-    use std::{env, process::Command};
-
-    Command::new("cmake")
-        .current_dir("tflite")
-        .arg(".")
-        .arg("-DCMAKE_BUILD_TYPE=Release")
-        .status()
-        .expect("Failed to run cmake");
+    use std::env;
 
     let root_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     println!("cargo:rustc-link-search=native={}/tflite/lib/", root_dir);
