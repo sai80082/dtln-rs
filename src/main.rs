@@ -2,7 +2,7 @@
 use anyhow::Result;
 
 #[cfg(target_os = "macos")]
-use dtln_rs::dtln_processor::{DtlnProcessEngine, DtlnDeferredProcessor};
+use dtln_rs::dtln_processor::{DtlnDeferredProcessor, DtlnProcessEngine};
 
 #[cfg(target_os = "macos")]
 use dtln_rs::dtln_utilities::{read_wav_to_pcm32, write_pcm32_to_wav};
@@ -81,9 +81,11 @@ fn check_is_wav(name: &str, check_exists: bool) {
     }
 }
 
-// Set up an empty main function. We are exporting extern "C" functions
-// which are meant to orchestrate usage of the module through WASM.
-// The noInitialRun option should be set on the WebAssembly module.
+// Set up an empty main function for targets we don't provide a CLI for.
+#[cfg(all(not(target_os = "macos"), not(target_os = "emscripten")))]
+fn main() {}
+
+// WebAssembly builds export functions without running a main.
 #[cfg(target_os = "emscripten")]
 fn main() {}
 
